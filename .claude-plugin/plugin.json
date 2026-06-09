@@ -1,6 +1,6 @@
 {
   "name": "url-context",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Auto-injects human-authored metadata into context whenever a registered URL/pattern appears in your prompt. Figma URLs are drafted via the Figma MCP, other URLs via WebFetch, with a manual-template fallback when access fails.",
   "author": {
     "name": "bbbjihan"

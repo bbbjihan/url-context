@@ -33,8 +33,15 @@ url-context/
 └── skills/url-context/      # management commands (add/list/show/edit/remove)
 ```
 
-Registered **data** lives not in the plugin but in **each project's `.claude/url-context/<id>.md`**.
-(Engine is shared; data is per-project.)
+Registered **data** lives not in the plugin but in one of two stores, which the hook reads and
+merges:
+
+- **user** (default): `~/.claude/url-context/<id>.md` — shared across all your projects/sessions
+- **project**: `<project>/.claude/url-context/<id>.md` — this project only; team-shareable by
+  committing to the repo
+
+If the same `id` exists in both, the **project** entry takes precedence. (Engine is shared; data is
+user- and/or project-scoped.)
 
 ## Install
 

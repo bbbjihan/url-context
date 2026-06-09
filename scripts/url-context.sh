@@ -1,55 +1,73 @@
 #!/usr/bin/env bash
 # url-context — UserPromptSubmit hook (plugin engine)
 #
-# Walks the project's .claude/url-context/*.md entries and tests each entry's
-# frontmatter `match` (a regex) against the user prompt. On a match, prints that
-# entry's body to stdout so it is injected into the current turn's context.
+# Reads registered entries from BOTH stores, tests each entry's frontmatter
+# `match` (a regex) against the prompt, and prints matching entries to stdout so
+# they are injected into the current turn's context.
 #
-# - If no entry matches, prints nothing and exits cleanly (normal behavior).
-# - The engine lives in the plugin; registered data lives per-project in
-#   .claude/url-context/.
-# - bash 3.2 (macOS default) compatible; requires jq.
+#   user-level:    ~/.claude/url-context/*.md
+#                    shared across ALL projects/sessions
+#   project-level: $CLAUDE_PROJECT_DIR/.claude/url-context/*.md
+#                    this project only; can be team-shared by committing to the repo
+#
+# Project entries take precedence over user entries with the same id (filename):
+# the project dir is scanned first, and a given id is emitted at most once.
+#
+# - If nothing matches, prints nothing and exits cleanly (normal behavior).
+# - bash 3.2 (macOS default) compatible — no associative arrays; requires jq.
 
 set -uo pipefail
 
-DATA_DIR="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/url-context"
-[ -d "$DATA_DIR" ] || exit 0
+USER_DIR="$HOME/.claude/url-context"
+PROJ_DIR="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/url-context"
 
 input="$(cat)"
 prompt="$(printf '%s' "$input" | jq -r '.prompt // empty')"
 [ -z "$prompt" ] && exit 0
 
 emitted=0
-for f in "$DATA_DIR"/*.md; do
-  [ -f "$f" ] || continue
-  case "$(basename "$f")" in README.md) continue ;; esac
+seen=" "   # space-delimited ids already handled (project scanned first → wins)
 
-  # Extract the `match:` value from the frontmatter (first --- .. next ---)
-  match="$(awk '
-    NR==1 && $0=="---" { infm=1; next }
-    infm && $0=="---"  { exit }
-    infm && /^match:/  { sub(/^match:[[:space:]]*/,""); print; exit }
-  ' "$f")"
-  [ -z "$match" ] && continue
+# Project dir first so its entries take precedence over same-id user entries.
+for dir in "$PROJ_DIR" "$USER_DIR"; do
+  [ -d "$dir" ] || continue
+  for f in "$dir"/*.md; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f")"
+    case "$base" in README.md) continue ;; esac
+    id="${base%.md}"
 
-  # Strip surrounding quotes (single/double)
-  case "$match" in
-    \"*\") match="${match#\"}"; match="${match%\"}" ;;
-    \'*\') match="${match#\'}"; match="${match%\'}" ;;
-  esac
-  [ -z "$match" ] && continue
+    # Dedup by id; whichever dir is scanned first (project) wins.
+    case "$seen" in *" $id "*) continue ;; esac
+    seen="$seen$id "
 
-  if printf '%s' "$prompt" | grep -qiE "$match" 2>/dev/null; then
-    if [ "$emitted" -eq 0 ]; then
-      printf '## Registered URL context\n\n'
-      printf 'This prompt contains a pre-registered URL/pattern. Always consult the metadata below when working on it.\n\n'
-      emitted=1
+    # Extract the `match:` value from the frontmatter (first --- .. next ---)
+    match="$(awk '
+      NR==1 && $0=="---" { infm=1; next }
+      infm && $0=="---"  { exit }
+      infm && /^match:/  { sub(/^match:[[:space:]]*/,""); print; exit }
+    ' "$f")"
+    [ -z "$match" ] && continue
+
+    # Strip surrounding quotes (single/double)
+    case "$match" in
+      \"*\") match="${match#\"}"; match="${match%\"}" ;;
+      \'*\') match="${match#\'}"; match="${match%\'}" ;;
+    esac
+    [ -z "$match" ] && continue
+
+    if printf '%s' "$prompt" | grep -qiE "$match" 2>/dev/null; then
+      if [ "$emitted" -eq 0 ]; then
+        printf '## Registered URL context\n\n'
+        printf 'This prompt contains a pre-registered URL/pattern. Always consult the metadata below when working on it.\n\n'
+        emitted=1
+      fi
+      scope="user"; [ "$dir" = "$PROJ_DIR" ] && scope="project"
+      printf '<url-context id="%s" scope="%s">\n' "$id" "$scope"
+      cat "$f"
+      printf '\n</url-context>\n\n'
     fi
-    id="$(basename "$f" .md)"
-    printf '<url-context id="%s" src=".claude/url-context/%s.md">\n' "$id" "$id"
-    cat "$f"
-    printf '\n</url-context>\n\n'
-  fi
+  done
 done
 
 exit 0

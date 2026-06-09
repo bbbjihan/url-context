@@ -15,9 +15,12 @@ single-plugin marketplace.
 - **Engine** — `scripts/url-context.sh`, a `UserPromptSubmit` hook registered in `hooks/hooks.json`.
   Reads the prompt, tests each data entry's `match` regex, and prints matching entries to stdout
   so they are injected into that turn's context.
-- **Data** — `.claude/url-context/<id>.md`. **NOT in this repo.** It lives **per-project** in the
-  user's project at `$CLAUDE_PROJECT_DIR/.claude/url-context/`. The engine is shared; the data is
-  per-project. The `examples/url-context/` files here are samples only.
+- **Data** — `<id>.md` entries. **NOT in this repo.** The hook reads and merges **two stores**:
+  `~/.claude/url-context/` (user scope, default — shared across all projects) and
+  `$CLAUDE_PROJECT_DIR/.claude/url-context/` (project scope — team-shareable via the repo). Same `id`
+  → the **project** entry wins (project dir is scanned first; each id emitted at most once). The
+  engine is shared; data is user/project-scoped. The `examples/url-context/` files here are samples
+  only.
 - **Management** — `skills/url-context/SKILL.md`, the `/url-context` skill that CRUDs data entries
   (add / list / show / edit / remove).
 
@@ -48,7 +51,7 @@ directory. **Preserve this separation.**
 
 ## Versioning & releasing (explicit version policy)
 
-- We use an **explicit `version`** in `.claude-plugin/plugin.json` (currently `0.1.0`). Users only
+- We use an **explicit `version`** in `.claude-plugin/plugin.json` (currently `0.2.0`). Users only
   receive an update when this field is bumped. (Omitting `version` would switch to commit-SHA =
   every commit counts as an update; we intentionally do **not** do that.)
 - **To ship a behavior change:** bump `version` in **both** `.claude-plugin/plugin.json` and the
