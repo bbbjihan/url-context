@@ -1,0 +1,14 @@
+{
+  "name": "url-context-marketplace",
+  "owner": {
+    "name": "bbbjihan"
+  },
+  "plugins": [
+    {
+      "name": "url-context",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "Register per-URL metadata once, and it is auto-injected into context whenever that URL appears in a prompt."
+    }
+  ]
+}
