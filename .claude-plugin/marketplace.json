@@ -3,6 +3,9 @@
   "owner": {
     "name": "bbbjihan"
   },
+  "metadata": {
+    "description": "URL-based context injection for Claude Code: register per-URL metadata once and have it auto-injected whenever a matching URL appears in a prompt."
+  },
   "plugins": [
     {
       "name": "url-context",
